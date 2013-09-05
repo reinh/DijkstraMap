@@ -1,2 +1,4 @@
+DijkstraMap
 *.o
 *.hi
+*.eventlog
