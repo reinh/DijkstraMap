@@ -12,7 +12,7 @@ module Main where
 
 import TropicalSemiring
 
-import Prelude hiding      (concatMap, foldr, sum, maximum, minimum, concat)
+import Prelude hiding      (concatMap, foldr, sum, maximum, minimum, concat, mapM_)
 import Linear.V2
 import Data.List           (intersect, nub)
 import Data.Functor
@@ -21,9 +21,11 @@ import Data.Traversable
 import Data.Monoid
 import Control.DeepSeq
 import Control.Lens
-import Control.Monad
+import Control.Monad hiding (mapM_)
 import Control.Monad.Par
 import Control.Applicative
+import Control.Parallel
+import Control.Parallel.Strategies
 import GHC.Arr             (range, inRange)
 import Data.Vector         (Vector, (!),)
 import Data.Vector.Strategies
@@ -39,7 +41,7 @@ newtype Grid a = Grid { _cells :: Vector (Vector a) }
   deriving (Show, Read, Eq, Functor, Foldable, Traversable)
 
 instance NFData a => NFData (Grid a) where
-    rnf = rnf . _cells
+    rnf g = rnf (_cells g) `seq` ()
 
 makeLenses ''Grid
 makePrisms ''Grid
@@ -66,11 +68,11 @@ resolve g | step g == g = g
           | otherwise   = resolve (step g)
 
 step :: Weighted -> Weighted
-step g = imap f g where
-  f :: Coord -> Tropical Weight -> Tropical Weight
-  f i v = update <$> v <*> m where
-    update v m = min v (m + 1)
-    m = join (minNeighbor g i)
+step g = let f' = f g in imap f' g where
+
+f g i v = update <$> v <*> m where
+  update v m = min v (m + 1)
+  m = join (minNeighbor g i)
 
 minNeighbor :: Ord a => Grid a -> Coord -> Tropical a
 minNeighbor g c = minimum $ Tropical . (g!!?) <$> potentialNeighbors c where
@@ -139,9 +141,6 @@ padL n s = let extra = n - (length s) in pad extra s where
 gridFromList :: [[a]] -> Grid a
 gridFromList = Grid . V.fromList . fmap V.fromList
 
-target :: Weighted -> Coord -> Weighted
-target g c = g & ix c .~ pure 0
-
 testMap :: Weighted
 testMap = charsToWeighted grid where
   grid :: Chars
@@ -154,26 +153,51 @@ testMap = charsToWeighted grid where
     , " ### ### ### ### "
     , " #     # #     # "
     , " #     # #     # "
-    , " #     # #     # "
-    , " #     # #     # "
-    , " #     # #     # "
-    , " ### ### ### ### "
     , "                 "
     ]
 
-buildMaps :: Grid Weighted -> Grid Weighted
-buildMaps gs = runPar $ do
-  m <- traverse (spawnP . resolve) gs
-  traverse get m
-
-targetted :: Weighted -> Grid Weighted
-targetted g = imap (\i _ -> g `target` i) g
-
-asyncBuildMaps g = parMap resolve (targetted g) where
+testMap' :: Weighted
+testMap' = charsToWeighted grid where
+  grid :: Chars
+  grid = gridFromList
+    [ "                         "
+    , " #     # #     # #     # "
+    , " #     # #     # #     # "
+    , " ### ### ### ### ### ### "
+    , "                         "
+    , " ### ### ### ### ### ### "
+    , " #     # #     # #     # "
+    , " #     # #     # #     # "
+    , "                         "
+    , " #     # #     # #     # "
+    , " #     # #     # #     # "
+    , " ### ### ### ### ### ### "
+    , "                         "
+    , " ### ### ### ### ### ### "
+    , " #     # #     # #     # "
+    , " #     # #     # #     # "
+    , "                         "
+    ]
 
 instance Show a => Show (Tropical a) where
     show (Tropical Nothing)  = "∞"
     show (Tropical (Just a)) = show a
 
-main :: IO ()
-main = printGrid $ (buildMaps (targetted testMap)) !!! V2 0 0
+buildMaps :: Weighted -> M.Map Coord Weighted
+buildMaps g = runPar $ do
+  m <- traverse (spawnP . resolve) (targetted g)
+  traverse get m
+
+asyncBuildMaps g = syncBuildMaps g `using` parTraversable rpar
+syncBuildMaps g = fmap resolve (targetted g)
+
+target :: Weighted -> Coord -> Weighted
+target g c = g & ix c .~ pure 0
+
+targetted :: Weighted -> M.Map Coord Weighted
+targetted g = M.fromList $ gs^@..itraversed where gs = imap (\i _ -> g `target` i) g
+
+-- main :: IO ()
+main = do
+    let m = asyncBuildMaps testMap
+    m `deepseq` print "done"
