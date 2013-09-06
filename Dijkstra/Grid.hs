@@ -14,7 +14,7 @@ module Dijkstra.Grid (
   , Grid(..)
   , gridFromList
   , (!!!), (!!?)
-  , dims, subGrid, inBounds
+  , dims, subGrid, around, inBounds
   , minNeighbor, neighbors, potentialNeighbors
 
   -- Grids of (tropical) weights
@@ -85,8 +85,8 @@ grid !!? v = grid^?ix v
 dims :: Grid a -> (Int, Int)
 dims = liftA2 (,) (V.length . V.head) V.length . _cells
 
-subGrid :: Int -> Coord -> [Coord]
-subGrid width (V2 x y) =
+subGrid :: Int -> Coord -> Vector Coord
+subGrid width (V2 x y) = V.fromList
     [ (V2 x' y')
     | y' <- [y-width..y+width]
     , x' <- [x-width..x+width]
@@ -94,6 +94,16 @@ subGrid width (V2 x y) =
     , x' >= 0
     , y' >= 0
     ]
+
+-- The coordinates in a box around the target coordinate starting n cells
+-- away
+around :: Coord -> Int -> V.Vector Coord
+around v2 n = top V.++ right V.++ bottom V.++ left where
+  enum = V.enumFromTo
+  top    = do { x <- enum  (-n)  n    ; return $ v2 + V2 x  (-n) }
+  right  = do { y <- enum (1-n) (n-1) ; return $ v2 + V2 n    y  }
+  bottom = do { x <- enum  (-n)  n    ; return $ v2 + V2 x    n  }
+  left   = do { y <- enum (1-n) (n-1) ; return $ v2 + V2 (-n) y  }
 
 inBounds :: Grid a -> Coord -> Bool
 inBounds g c = let (w,h) = dims g in inRange (V2 0 0, V2 w h - 1) c
@@ -108,7 +118,10 @@ neighbors :: Grid a -> Coord -> Vector Coord
 neighbors g c = V.filter (\c -> isJust (g!!?c)) (potentialNeighbors c)
 
 potentialNeighbors :: Coord -> Vector Coord
-potentialNeighbors = V.fromList . subGrid 1
+potentialNeighbors c = V.map (+c) $ V.fromList
+  [ V2 (-1) (-1), V2 0 (-1), V2 1 (-1)
+  , V2 (-1)   0 ,            V2 1   0
+  , V2 (-1)   1 , V2 0   1 , V2 1   1  ]
 
 -- Cell Grids
 
