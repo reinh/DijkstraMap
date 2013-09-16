@@ -36,6 +36,8 @@ module Dijkstra.Grid (
 
 import TropicalSemiring
 
+import Debug.Trace
+
 import Prelude hiding (concat, maximum, minimum)
 
 import Control.Applicative (Applicative(..), pure, liftA2)
@@ -51,6 +53,8 @@ import Linear.V2           (V2(..))
 import Control.Lens        -- Yes, all of it.
 
 import qualified Data.Vector as V
+
+tracing a = traceShow a a
 
 instance NFData a => NFData (V2 a) where rnf (V2 a b) = rnf a `seq` rnf b `seq` ()
 

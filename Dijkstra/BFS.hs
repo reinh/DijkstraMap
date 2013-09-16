@@ -3,17 +3,21 @@
 module Dijkstra.BFS where
 
 import Dijkstra.Grid
+import TropicalSemiring (Tropical(getTropical))
 
 import Prelude hiding ((++))
 import Data.Vector ((++))
-import qualified Data.Vector as V
 import Linear.V2 (V2(..))
-import Data.List (union)
+import Data.Maybe (isJust)
+
+import qualified Data.Vector as V
+
 
 -- An ordering of the squares of the grid that begins with the immediate
 -- neighbors of the target cell and then expands breadth-first outward.
-bfsOrder :: Grid a -> Coord -> V.Vector Coord
-bfsOrder g c = V.filter (inBounds g) $ V.concatMap (around c) depths where
+bfsOrder :: Weighted -> Coord -> V.Vector Coord
+bfsOrder g c = V.filter reachable $ V.concatMap (around c) depths where
+  reachable c = isJust $ g !!? c >>= getTropical
   depths = V.enumFromTo 1 (maxDepth g c)
 
 -- The maximum depth to generate
