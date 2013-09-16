@@ -1,4 +1,3 @@
-{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Main where
@@ -11,9 +10,9 @@ import Data.Word8
 
 import qualified Data.Vector as V
 
-import DijkstraMap
+import Dijkstra.Map
 import Dijkstra.Grid (Grid(..), Reachable, reachableToWeighted, Weighted, Coord, (!!?), (!!!), printGrid)
-import TropicalSemiring
+import Dijkstra.Tropical
 import TestMaps
 
 data Level = Level
@@ -25,15 +24,13 @@ makeLenses ''Level
 
 printLevel = putStrLn . showLevel
 
--- levelToImage :: Level -> Image
-levelToImage level maps = img where
-  r = _reachable level
-  p = _player level
+levelToImage :: Level -> Grid Weighted -> Image
+levelToImage (Level r p) maps = img where
   distances = maps !!! p
 
-  img = V.foldr (<->) empty_image lines
+  img = V.foldr' (<->) empty_image lines
   lines = V.map go images where
-    go line = (V.foldr (<|>) empty_image line) <|> char def_attr ' '
+    go line = (V.foldr' (<|>) empty_image line) <|> char def_attr ' '
 
   Grid images = imap toImg r
 
@@ -93,12 +90,10 @@ go fs maps level = do
       otherwise -> shutdown fs
 
 move :: Level -> Coord -> Level
-move level c =
+move level@(Level r c) dc =
   let
-    r = level^.reachable
-    newCoord = level^.player + c
+    c' = c + dc
   in
-    case (r !!? newCoord) of
-      Nothing -> level
-      Just False -> level
-      Just True -> level & player .~ newCoord
+    case (r !!? c') of
+      Just True -> level & player .~ c'
+      otherwise -> level

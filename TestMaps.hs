@@ -1,6 +1,6 @@
 module TestMaps where
 
-import Dijkstra.FlatGrid
+import Dijkstra.Grid
 
 testMap :: Weighted
 testMap = charsToWeighted grid where

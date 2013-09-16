@@ -1,15 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ImplicitParams #-}
 
-module DijkstraMap where
+module Dijkstra.Map where
 
 import Prelude hiding      (concatMap, sum, maximum, minimum, concat)
-
--- import Dijkstra.Grid       (Weighted, Coord, minNeighbor, (!!!))
-import Dijkstra.FlatGrid
-import TropicalSemiring
-import TestMaps
 
 import Data.List           (intersect, nub)
 import Control.DeepSeq     (deepseq)
@@ -21,6 +15,11 @@ import Control.Applicative ((<*>), pure)
 import Control.Parallel.Strategies (using, parTraversable, rpar, rdeepseq)
 
 import Control.Lens
+
+import Dijkstra.Grid
+import Dijkstra.BFS
+import Dijkstra.Tropical
+import TestMaps
 
 import qualified Data.Vector         as V
 
@@ -35,7 +34,7 @@ resolve :: Coord -> Weighted -> Weighted
 resolve c g = goFixed go . (go.go) $ target where
   -- The grid with the target coordinate zeroed out
   target :: Weighted
-  target = g & cells.ix (coordToIndex g c) .~ pure 0
+  target = g & ix c .~ pure 0
 
   -- The breadth-first ordering to iterate over
   o :: V.Vector Coord
@@ -44,7 +43,7 @@ resolve c g = goFixed go . (go.go) $ target where
   -- Resolve as much of the map as possible in a single pass
   go :: Weighted -> Weighted
   go g = V.foldl' step g o where
-    step g' c' = g' & cells.ix (coordToIndex g' c') %~ updateCell g' c'
+    step g' c' = g' & ix c' %~ updateCell g' c'
 
   updateCell :: Weighted -> Coord -> Tropical Weight -> Tropical Weight
   updateCell g c v = update <$> v <*> join (minNeighbor g c) where

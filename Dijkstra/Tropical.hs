@@ -1,9 +1,8 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE ImplicitParams #-}
 
-module TropicalSemiring
+module Dijkstra.Tropical
     ( Tropical(Tropical, getTropical)
     , infinity
     , Semiring
@@ -22,6 +21,7 @@ data Tropical a = Tropical { getTropical :: Maybe a }
 
 infinity :: Tropical a
 infinity = Tropical Nothing
+{-# INLINE infinity #-}
 
 instance NFData a => NFData (Tropical a) where
     rnf = rnf . getTropical
@@ -31,13 +31,19 @@ instance Ord a => Ord (Tropical a) where
     Tropical Nothing  `compare` _                 = GT
     _                 `compare` Tropical Nothing  = LT
     Tropical (Just a) `compare` Tropical (Just b) = a `compare` b
+    {-# INLINE compare #-}
 
 instance Ord a => Monoid (Tropical a) where
     mempty = infinity
+    {-# INLINE mempty #-}
+
     mappend = min
+    {-# INLINE mappend #-}
 
 instance Applicative Tropical where
     pure = Tropical . Just
+    {-# INLINE pure #-}
+
     Tropical (Just f) <*> Tropical (Just x) = pure (f x)
     _                 <*> _                 = Tropical Nothing
 
@@ -83,3 +89,7 @@ class Semiring a => StarSemiring a where
 instance (Ord a, Num a) => StarSemiring (Tropical a) where
     star _ = one
 
+-- Optional Show instance
+instance Show a => Show (Tropical a) where
+    show (Tropical Nothing)  = "∞"
+    show (Tropical (Just a)) = show a

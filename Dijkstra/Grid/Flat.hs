@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Dijkstra.FlatGrid where
+module Dijkstra.Grid.Flat where
 
 import Prelude hiding (concat, replicate, maximum, minimum)
 
@@ -29,8 +29,8 @@ import Data.Vector         (Vector, (!),)
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as G
 
-import TropicalSemiring
-import Dijkstra.Grid (around)
+import Dijkstra.Tropical
+import Dijkstra.BFS hiding (maxDepth)
 
 derivingUnbox "Tropical"
   [t| (Default a, U.Unbox a) => Tropical a -> (Bool, a) |]

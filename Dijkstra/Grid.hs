@@ -7,18 +7,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Dijkstra.Grid (
-  -- Grid coordinates
-  Coord
-
-  -- Basic grids
-  , Grid(..)
-  , gridFromList
-  , (!!!), (!!?)
-  , dims, subGrid, around, inBounds
-  , minNeighbor, neighbors, potentialNeighbors
-
   -- Grids of (tropical) weights
-  , Weighted
+    Weighted
   , Weight
 
   -- Reachability (Bool) grids
@@ -34,8 +24,6 @@ module Dijkstra.Grid (
   , showGrid, printGrid
   ) where
 
-import TropicalSemiring
-
 import Debug.Trace
 
 import Prelude hiding (concat, maximum, minimum)
@@ -46,7 +34,7 @@ import Control.Monad       (guard)
 import Data.Foldable       (Foldable(..), concat, maximum, minimum)
 import Data.Functor        ((<$>))
 import Data.Maybe          (isJust)
-import Data.Vector         (Vector, (!),)
+import Data.Vector         (Vector, (!), (!?))
 import Data.Ix             (inRange)
 import Linear.V2           (V2(..))
 
@@ -54,78 +42,10 @@ import Control.Lens        -- Yes, all of it.
 
 import qualified Data.Vector as V
 
-tracing a = traceShow a a
+import Dijkstra.Tropical
+import Dijkstra.Coord
+import Dijkstra.Grid.Vector
 
-instance NFData a => NFData (V2 a) where rnf (V2 a b) = rnf a `seq` rnf b `seq` ()
-
-type Coord = V2 Int
-
-newtype Grid a = Grid { _cells :: Vector (Vector a) }
-  deriving (Show, Read, Eq, Functor, Foldable, Traversable)
-
-instance NFData a => NFData (Grid a) where
-    rnf g = rnf (_cells g) `seq` ()
-
-makeLenses ''Grid
-makePrisms ''Grid
-
-type instance Index (Grid a) = Coord
-type instance IxValue (Grid a) = a
-
-instance Applicative f => Ixed f (Grid a) where
-    ix xy@(V2 x y) f (Grid xs) = Grid <$> ix y (ix x (indexed f xy)) xs
-
-instance FunctorWithIndex Coord Grid
-instance FoldableWithIndex Coord Grid
-instance TraversableWithIndex Coord Grid where
-    itraverse f (Grid xs) = Grid <$> itraverse (\y -> itraverse (\x -> f (V2 x y))) xs
-
--- (!!!) :: Grid a -> Coord -> a
-grid !!! v = grid^?!ix v
-
--- (!!?) :: Grid a -> Coord -> Maybe a
-grid !!? v = grid^?ix v
-
-dims :: Grid a -> (Int, Int)
-dims = liftA2 (,) (V.length . V.head) V.length . _cells
-
-subGrid :: Int -> Coord -> Vector Coord
-subGrid width (V2 x y) = V.fromList
-    [ (V2 x' y')
-    | y' <- [y-width..y+width]
-    , x' <- [x-width..x+width]
-    , (x,y) /= (x',y')
-    , x' >= 0
-    , y' >= 0
-    ]
-
--- The coordinates in a box around the target coordinate starting n cells
--- away
-around :: Coord -> Int -> V.Vector Coord
-around v2 n = top V.++ right V.++ bottom V.++ left where
-  enum = V.enumFromTo
-  top    = do { x <- enum  (-n)  n    ; return $ v2 + V2 x  (-n) }
-  right  = do { y <- enum (1-n) (n-1) ; return $ v2 + V2 n    y  }
-  bottom = do { x <- enum  (-n)  n    ; return $ v2 + V2 x    n  }
-  left   = do { y <- enum (1-n) (n-1) ; return $ v2 + V2 (-n) y  }
-
-inBounds :: Grid a -> Coord -> Bool
-inBounds g c = let (w,h) = dims g in inRange (V2 0 0, V2 w h - 1) c
-
-gridFromList :: [[a]] -> Grid a
-gridFromList = Grid . V.fromList . fmap V.fromList
-
-minNeighbor :: Ord a => Grid a -> Coord -> Tropical a
-minNeighbor g c = minimum $ Tropical . (g!!?) <$> potentialNeighbors c
-
-neighbors :: Grid a -> Coord -> Vector Coord
-neighbors g c = V.filter (\c -> isJust (g!!?c)) (potentialNeighbors c)
-
-potentialNeighbors :: Coord -> Vector Coord
-potentialNeighbors c = V.map (+c) $ V.fromList
-  [ V2 (-1) (-1), V2 0 (-1), V2 1 (-1)
-  , V2 (-1)   0 ,            V2 1   0
-  , V2 (-1)   1 , V2 0   1 , V2 1   1  ]
 
 -- Cell Grids
 
@@ -162,28 +82,3 @@ charsToReachable = fmap f where
 
 charsToWeighted :: Chars -> Weighted
 charsToWeighted = reachableToWeighted . charsToReachable
-
--- Helpers
-
-printGrid :: Show a => Grid a -> IO ()
-printGrid = putStrLn . showGrid
-
-showGrid :: Show a => Grid a -> String
-showGrid g = unlines . V.toList . fmap (concat . V.toList) $ padded where
-  Grid padded = fmap (padL mx) shown
-  shown = fmap show g
-  mx = 1 + maximum (fmap length shown)
-
-padL n s = let extra = n - (length s) in pad extra s where
-  pad :: Int -> String -> String
-  pad 0 s   = s
-  pad 1 s   = ' ':s
-  pad n s
-    | n < 0 = s
-    | n > 1 = ' ':pad (n-1) s
-
--- Optional Show instance
-instance Show a => Show (Tropical a) where
-    show (Tropical Nothing)  = "∞"
-    show (Tropical (Just a)) = show a
-
