@@ -10,13 +10,13 @@ import Linear.V2
 import Dijkstra.Map
 import Dijkstra.Grid
 import Dijkstra.BFS
-import TestMaps
+import Dijkstra.TestMaps
 import Control.Lens
 
 main :: IO ()
-main = defaultMain huge
+main = defaultMain all
 
-huge = [ bench "resolve  huge X1 map" $ nf (resolve  $ V2 0 0) testMap''' ]
+huge = [ bench "resolve  huge X2 map" $ nf (resolve  $ V2 0 0) testMap''' ]
 
 all = [ bench "resolve  small map"   $ nf (resolve  $ V2 0 0) testMap
       , bench "resolve  medium map"  $ nf (resolve  $ V2 0 0) testMap'

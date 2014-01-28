@@ -9,7 +9,6 @@
 module Dijkstra.Grid (
   -- Grids of (tropical) weights
     Weighted
-  , Weight
 
   -- Reachability (Bool) grids
   , Reachable
@@ -20,8 +19,7 @@ module Dijkstra.Grid (
   , Chars
   , charsToReachable, charsToWeighted
 
-  -- Printing and showing
-  , showGrid, printGrid
+  , module Dijkstra.Grid.Array
   ) where
 
 import Debug.Trace
@@ -44,8 +42,7 @@ import qualified Data.Vector as V
 
 import Dijkstra.Tropical
 import Dijkstra.Coord
-import Dijkstra.Grid.Vector
-
+import Dijkstra.Grid.Array
 
 -- Cell Grids
 
@@ -63,8 +60,7 @@ reachables = fmap reachable
 
 -- Weight Grids
 
-type Weight = Int
-type Weighted = Grid (Tropical Weight)
+type Weighted = Grid Weight
 
 reachableToWeighted :: Reachable -> Weighted
 reachableToWeighted = fmap f where

@@ -7,6 +7,7 @@ module Dijkstra.Tropical
     , infinity
     , Semiring
     , StarSemiring
+    , Weight
     )
     where
 
@@ -18,6 +19,8 @@ import Data.Traversable    (Traversable)
 
 data Tropical a = Tropical { getTropical :: Maybe a }
     deriving (Eq, Functor, Foldable, Traversable)
+
+type Weight = Tropical Int
 
 infinity :: Tropical a
 infinity = Tropical Nothing
